@@ -1,7 +1,6 @@
 from torch import Tensor
 
-import folder_paths
-from nodes import VAEEncode
+from comfy.model_downloader import get_or_download, get_filename_list_with_downloadable
 import comfy.utils
 from comfy.sd import VAE
 
@@ -16,7 +15,7 @@ class SparseCtrlLoaderAdvanced:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "sparsectrl_name": (folder_paths.get_filename_list("controlnet"), ),
+                "sparsectrl_name": (get_filename_list_with_downloadable("controlnet"), ),
                 "use_motion": ("BOOLEAN", {"default": True}, ),
                 "motion_strength": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0, "step": 0.001}, ),
                 "motion_scale": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0, "step": 0.001}, ),
@@ -30,7 +29,7 @@ class SparseCtrlLoaderAdvanced:
                 "sparse_mask_mult": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0, "step": 0.001}, ),
             }
         }
-    
+
     RETURN_TYPES = ("CONTROL_NET", )
     FUNCTION = "load_controlnet"
 
@@ -38,7 +37,7 @@ class SparseCtrlLoaderAdvanced:
 
     def load_controlnet(self, sparsectrl_name: str, use_motion: bool, motion_strength: float, motion_scale: float, sparse_method: SparseMethod=SparseSpreadMethod(), tk_optional: TimestepKeyframeGroup=None,
                         context_aware=SparseContextAware.NEAREST_HINT, sparse_hint_mult=1.0, sparse_nonhint_mult=1.0, sparse_mask_mult=1.0):
-        sparsectrl_path = folder_paths.get_full_path("controlnet", sparsectrl_name)
+        sparsectrl_path = get_or_download("controlnet", sparsectrl_name)
         sparse_settings = SparseSettings(sparse_method=sparse_method, use_motion=use_motion, motion_strength=motion_strength, motion_scale=motion_scale,
                                          context_aware=context_aware,
                                          sparse_mask_mult=sparse_mask_mult, sparse_hint_mult=sparse_hint_mult, sparse_nonhint_mult=sparse_nonhint_mult)
@@ -51,8 +50,8 @@ class SparseCtrlMergedLoaderAdvanced:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "sparsectrl_name": (folder_paths.get_filename_list("controlnet"), ),
-                "control_net_name": (folder_paths.get_filename_list("controlnet"), ),
+                "sparsectrl_name": (get_filename_list_with_downloadable("controlnet"), ),
+                "control_net_name": (get_filename_list_with_downloadable("controlnet"), ),
                 "use_motion": ("BOOLEAN", {"default": True}, ),
                 "motion_strength": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0, "step": 0.001}, ),
                 "motion_scale": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0, "step": 0.001}, ),
@@ -62,15 +61,15 @@ class SparseCtrlMergedLoaderAdvanced:
                 "tk_optional": ("TIMESTEP_KEYFRAME", ),
             }
         }
-    
+
     RETURN_TYPES = ("CONTROL_NET", )
     FUNCTION = "load_controlnet"
 
     CATEGORY = "Adv-ControlNet 🛂🅐🅒🅝/SparseCtrl/experimental"
 
     def load_controlnet(self, sparsectrl_name: str, control_net_name: str, use_motion: bool, motion_strength: float, motion_scale: float, sparse_method: SparseMethod=SparseSpreadMethod(), tk_optional: TimestepKeyframeGroup=None):
-        sparsectrl_path = folder_paths.get_full_path("controlnet", sparsectrl_name)
-        controlnet_path = folder_paths.get_full_path("controlnet", control_net_name)
+        sparsectrl_path = get_or_download("controlnet", sparsectrl_name)
+        controlnet_path = get_or_download("controlnet", control_net_name)
         sparse_settings = SparseSettings(sparse_method=sparse_method, use_motion=use_motion, motion_strength=motion_strength, motion_scale=motion_scale, merged=True)
         # first, load normal controlnet
         controlnet = load_controlnet(controlnet_path, timestep_keyframe=tk_optional)
@@ -96,7 +95,7 @@ class SparseIndexMethodNode:
                 "indexes": ("STRING", {"default": "0"}),
             }
         }
-    
+
     RETURN_TYPES = ("SPARSE_METHOD",)
     FUNCTION = "get_method"
 
@@ -115,7 +114,7 @@ class SparseSpreadMethodNode:
                 "spread": (SparseSpreadMethod.LIST,),
             }
         }
-    
+
     RETURN_TYPES = ("SPARSE_METHOD",)
     FUNCTION = "get_method"
 
@@ -151,10 +150,7 @@ class RgbSparseCtrlPreprocessor:
         image = comfy.utils.common_upscale(image, latent_size["samples"].shape[3] * 8, latent_size["samples"].shape[2] * 8, 'nearest-exact', "center")
         image = image.movedim(1,-1)
         # then, vae encode
-        try:
-            image = vae.vae_encode_crop_pixels(image)
-        except Exception:
-            image = VAEEncode.vae_encode_crop_pixels(image)
+        image = vae.vae_encode_crop_pixels(image)
         encoded = vae.encode(image[:,:,:,:3])
         return (PreprocSparseRGBWrapper(condhint=encoded),)
 
@@ -171,14 +167,16 @@ class SparseWeightExtras:
                 "autosize": ("ACNAUTOSIZE", {"padding": 50}),
             }
         }
-    
+
     RETURN_TYPES = ("CN_WEIGHTS_EXTRAS", )
     RETURN_NAMES = ("cn_extras", )
     FUNCTION = "create_weight_extras"
 
     CATEGORY = "Adv-ControlNet 🛂🅐🅒🅝/SparseCtrl/extras"
 
-    def create_weight_extras(self, cn_extras: dict[str]={}, sparse_hint_mult=1.0, sparse_nonhint_mult=1.0, sparse_mask_mult=1.0):
+    def create_weight_extras(self, cn_extras=None, sparse_hint_mult=1.0, sparse_nonhint_mult=1.0, sparse_mask_mult=1.0):
+        if cn_extras is None:
+            cn_extras = {}
         cn_extras = cn_extras.copy()
         cn_extras[SparseConst.HINT_MULT] = sparse_hint_mult
         cn_extras[SparseConst.NONHINT_MULT] = sparse_nonhint_mult

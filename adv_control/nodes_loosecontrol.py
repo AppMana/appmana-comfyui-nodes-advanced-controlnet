@@ -1,4 +1,4 @@
-import folder_paths
+from comfy.model_downloader import get_or_download, get_filename_list_with_downloadable
 import comfy.utils
 import comfy.model_detection
 import comfy.model_management
@@ -37,8 +37,8 @@ class ControlNetLoaderWithLoraAdvanced:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "control_net_name": (folder_paths.get_filename_list("controlnet"), ),
-                "cn_lora_name": (folder_paths.get_filename_list("controlnet"), ),
+                "control_net_name": (get_filename_list_with_downloadable("controlnet"), ),
+                "cn_lora_name": (get_filename_list_with_downloadable("controlnet"), ),
                 "cn_lora_strength": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.001}),
             },
             "optional": {
@@ -54,12 +54,12 @@ class ControlNetLoaderWithLoraAdvanced:
     def load_controlnet(self, control_net_name, cn_lora_name, cn_lora_strength: float,
                         timestep_keyframe: TimestepKeyframeGroup=None
                         ):
-        controlnet_path = folder_paths.get_full_path("controlnet", control_net_name)
+        controlnet_path = get_or_download("controlnet", control_net_name)
         controlnet: ControlNetAdvanced = load_controlnet(controlnet_path, timestep_keyframe)
         if not isinstance(controlnet, ControlNetAdvanced):
             raise ValueError("Type {} is not compatible with CN LoRA features at this time.")
         # now, try to load CN LoRA
-        lora_path = folder_paths.get_full_path("controlnet", cn_lora_name)
+        lora_path = get_or_download("controlnet", cn_lora_name)
         lora_data = convert_cn_lora_from_diffusers(cn_model=controlnet.control_model_wrapped, lora_path=lora_path)
         # apply patches to wrapped control_model
         controlnet.control_model_wrapped.add_patches(lora_data, strength_patch=cn_lora_strength)

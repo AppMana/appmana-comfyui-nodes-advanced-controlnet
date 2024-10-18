@@ -23,7 +23,9 @@ class DefaultWeights:
 
     CATEGORY = "Adv-ControlNet 🛂🅐🅒🅝/weights"
 
-    def load_weights(self, cn_extras: dict[str]={}):
+    def load_weights(self, cn_extras=None):
+        if cn_extras is None:
+            cn_extras = {}
         weights = ControlWeights.default(extras=cn_extras)
         return (weights, TimestepKeyframeGroup.default(TimestepKeyframe(control_weights=weights))) 
 
@@ -53,8 +55,10 @@ class ScaledSoftMaskedUniversalWeights:
     CATEGORY = "Adv-ControlNet 🛂🅐🅒🅝/weights"
 
     def load_weights(self, mask: Tensor, min_base_multiplier: float, max_base_multiplier: float, lock_min=False, lock_max=False,
-                     uncond_multiplier: float=1.0, cn_extras: dict[str]={}):
+                     uncond_multiplier: float=1.0, cn_extras=None):
         # normalize mask
+        if cn_extras is None:
+            cn_extras = {}
         mask = mask.clone()
         x_min = 0.0 if lock_min else mask.min()
         x_max = 1.0 if lock_max else mask.max()
@@ -86,7 +90,9 @@ class ScaledSoftUniversalWeights:
 
     CATEGORY = "Adv-ControlNet 🛂🅐🅒🅝/weights"
 
-    def load_weights(self, base_multiplier, uncond_multiplier: float=1.0, cn_extras: dict[str]={}):
+    def load_weights(self, base_multiplier, uncond_multiplier: float=1.0, cn_extras=None):
+        if cn_extras is None:
+            cn_extras = {}
         weights = ControlWeights.universal(base_multiplier=base_multiplier, uncond_multiplier=uncond_multiplier, extras=cn_extras)
         return (weights, TimestepKeyframeGroup.default(TimestepKeyframe(control_weights=weights)))
 
@@ -123,9 +129,11 @@ class SoftControlNetWeightsSD15:
 
     CATEGORY = "Adv-ControlNet 🛂🅐🅒🅝/weights/ControlNet"
 
-    def load_weights(self, output_0, output_1, output_2, output_3, output_4, output_5, output_6, 
+    def load_weights(self, output_0, output_1, output_2, output_3, output_4, output_5, output_6,
                      output_7, output_8, output_9, output_10, output_11, middle_0,
-                     uncond_multiplier: float=1.0, cn_extras: dict[str]={}):
+                     uncond_multiplier: float=1.0, cn_extras=None):
+        if cn_extras is None:
+            cn_extras = {}
         return CustomControlNetWeightsSD15.load_weights(self,
                                                         output_0=output_0, output_1=output_1, output_2=output_2, output_3=output_3,
                                                         output_4=output_4, output_5=output_5, output_6=output_6, output_7=output_7,
@@ -166,9 +174,11 @@ class CustomControlNetWeightsSD15:
 
     CATEGORY = "Adv-ControlNet 🛂🅐🅒🅝/weights/ControlNet"
 
-    def load_weights(self, output_0, output_1, output_2, output_3, output_4, output_5, output_6, 
+    def load_weights(self, output_0, output_1, output_2, output_3, output_4, output_5, output_6,
                      output_7, output_8, output_9, output_10, output_11, middle_0,
-                     uncond_multiplier: float=1.0, cn_extras: dict[str]={}):
+                     uncond_multiplier: float=1.0, cn_extras=None):
+        if cn_extras is None:
+            cn_extras = {}
         weights_output = [output_0, output_1, output_2, output_3, output_4, output_5, output_6,
                           output_7, output_8, output_9, output_10, output_11]
         weights_middle = [middle_0]
@@ -214,10 +224,12 @@ class CustomControlNetWeightsFlux:
 
     CATEGORY = "Adv-ControlNet 🛂🅐🅒🅝/weights/ControlNet"
 
-    def load_weights(self, input_0, input_1, input_2, input_3, input_4, input_5, input_6, 
+    def load_weights(self, input_0, input_1, input_2, input_3, input_4, input_5, input_6,
                      input_7, input_8, input_9, input_10, input_11, input_12, input_13,
                      input_14, input_15, input_16, input_17, input_18,
-                     uncond_multiplier: float=1.0, cn_extras: dict[str]={}):
+                     uncond_multiplier: float=1.0, cn_extras=None):
+        if cn_extras is None:
+            cn_extras = {}
         weights_input = [input_0, input_1, input_2, input_3, input_4, input_5,
                          input_6, input_7, input_8, input_9, input_10, input_11,
                          input_12, input_13, input_14, input_15, input_16, input_17, input_18]
@@ -249,7 +261,9 @@ class SoftT2IAdapterWeights:
     CATEGORY = "Adv-ControlNet 🛂🅐🅒🅝/weights/T2IAdapter"
 
     def load_weights(self, input_0, input_1, input_2, input_3,
-                     uncond_multiplier: float=1.0, cn_extras: dict[str]={}):
+                     uncond_multiplier: float=1.0, cn_extras=None):
+        if cn_extras is None:
+            cn_extras = {}
         return CustomT2IAdapterWeights.load_weights(self, input_0=input_0, input_1=input_1, input_2=input_2, input_3=input_3,
                                                     uncond_multiplier=uncond_multiplier, cn_extras=cn_extras)
 
@@ -278,7 +292,9 @@ class CustomT2IAdapterWeights:
     CATEGORY = "Adv-ControlNet 🛂🅐🅒🅝/weights/T2IAdapter"
 
     def load_weights(self, input_0, input_1, input_2, input_3,
-                     uncond_multiplier: float=1.0, cn_extras: dict[str]={}):
+                     uncond_multiplier: float=1.0, cn_extras=None):
+        if cn_extras is None:
+            cn_extras = {}
         weights = [input_0, input_1, input_2, input_3]
         weights = get_properly_arranged_t2i_weights(weights)
         weights = ControlWeights.t2iadapter(weights_input=weights, uncond_multiplier=uncond_multiplier, extras=cn_extras)

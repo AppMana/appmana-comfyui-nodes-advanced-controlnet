@@ -1,6 +1,6 @@
 from torch import Tensor
 
-from nodes import VAEEncode
+from comfy.nodes.base_nodes import VAEEncode
 import comfy.utils
 from comfy.sd import VAE
 
@@ -82,9 +82,6 @@ class ReferencePreprocessorNode:
         image = comfy.utils.common_upscale(image, latent_size["samples"].shape[3] * 8, latent_size["samples"].shape[2] * 8, 'nearest-exact', "center")
         image = image.movedim(1,-1)
         # then, vae encode
-        try:
-            image = vae.vae_encode_crop_pixels(image)
-        except Exception:
-            image = VAEEncode.vae_encode_crop_pixels(image)
+        image = vae.vae_encode_crop_pixels(image)
         encoded = vae.encode(image[:,:,:,:3])
         return (ReferencePreprocWrapper(condhint=encoded),)

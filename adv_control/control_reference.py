@@ -141,7 +141,7 @@ class ReferencePreprocWrapper(AbstractPreprocWrapper):
 class ReferenceAdvanced(ControlBase, AdvancedControlBase):
     CHANNEL_TO_MULT = {320: 1, 640: 2, 1280: 4}
 
-    def __init__(self, ref_opts: ReferenceOptions, timestep_keyframes: TimestepKeyframeGroup, device=None):
+    def __init__(self, ref_opts: ReferenceOptions, timestep_keyframes: TimestepKeyframeGroup | None, device=None):
         super().__init__(device)
         AdvancedControlBase.__init__(self, super(), timestep_keyframes=timestep_keyframes, weights_default=ControlWeights.controllllite(), allow_condhint_latents=True)
         # TODO: allow vae_optional to be used instead of preprocessor

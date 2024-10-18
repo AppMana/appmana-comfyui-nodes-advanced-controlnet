@@ -1,8 +1,7 @@
 from torch import Tensor
 import math
 
-import folder_paths
-
+from comfy.model_downloader import get_or_download, get_filename_list_with_downloadable
 from .control_plusplus import load_controlnetplusplus, PlusPlusType, PlusPlusInput, PlusPlusInputGroup, PlusPlusImageWrapper
 from .utils import BIGMAX
 
@@ -13,7 +12,7 @@ class PlusPlusLoaderAdvanced:
         return {
             "required": {
                 "plus_input": ("PLUS_INPUT", ),
-                "name": (folder_paths.get_filename_list("controlnet"), ),
+                "name": (get_filename_list_with_downloadable("controlnet"), ),
             }
         }
     
@@ -23,7 +22,7 @@ class PlusPlusLoaderAdvanced:
     CATEGORY = "Adv-ControlNet 🛂🅐🅒🅝/ControlNet++"
 
     def load_controlnet_plusplus(self, plus_input: PlusPlusInputGroup, name: str):
-        controlnet_path = folder_paths.get_full_path("controlnet", name)
+        controlnet_path = get_or_download("controlnet", name)
         controlnet = load_controlnetplusplus(controlnet_path)
         controlnet.verify_control_type(name, plus_input)
         return (controlnet, PlusPlusImageWrapper(plus_input),)
@@ -34,7 +33,7 @@ class PlusPlusLoaderSingle:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "name": (folder_paths.get_filename_list("controlnet"), ),
+                "name": (get_filename_list_with_downloadable("controlnet"), ),
                 "control_type": (PlusPlusType._LIST_WITH_NONE, {"default": PlusPlusType.NONE}, ),
             }
         }
@@ -45,7 +44,7 @@ class PlusPlusLoaderSingle:
     CATEGORY = "Adv-ControlNet 🛂🅐🅒🅝/ControlNet++"
 
     def load_controlnet_plusplus(self, name: str, control_type: str):
-        controlnet_path = folder_paths.get_full_path("controlnet", name)
+        controlnet_path = get_or_download("controlnet", name)
         controlnet = load_controlnetplusplus(controlnet_path)
         controlnet.single_control_type = control_type
         controlnet.verify_control_type(name)

@@ -1,27 +1,27 @@
-import numpy as np
-from torch import Tensor
-
-import folder_paths
 import comfy.sample
 from comfy.model_patcher import ModelPatcher
+from torch import Tensor
+from . import documentation
 
 from .control import load_controlnet, convert_to_advanced, is_advanced_controlnet, is_sd3_advanced_controlnet
-from .utils import ControlWeights, LatentKeyframeGroup, TimestepKeyframeGroup, AbstractPreprocWrapper, BIGMAX
+from .nodes_deprecated import (LoadImagesFromDirectory, ScaledSoftUniversalWeightsDeprecated,
+                               SoftControlNetWeightsDeprecated, CustomControlNetWeightsDeprecated,
+                               SoftT2IAdapterWeightsDeprecated, CustomT2IAdapterWeightsDeprecated)
+from .nodes_keyframes import (LatentKeyframeGroupNode, LatentKeyframeInterpolationNode, LatentKeyframeBatchedGroupNode,
+                              LatentKeyframeNode,
+                              TimestepKeyframeNode, TimestepKeyframeInterpolationNode,
+                              TimestepKeyframeFromStrengthListNode)
+from .nodes_plusplus import PlusPlusLoaderAdvanced, PlusPlusLoaderSingle, PlusPlusInputNode
+from .nodes_reference import ReferenceControlNetNode, ReferenceControlFinetune, ReferencePreprocessorNode
+from .nodes_sparsectrl import SparseCtrlMergedLoaderAdvanced, SparseCtrlLoaderAdvanced, SparseIndexMethodNode, \
+    SparseSpreadMethodNode, RgbSparseCtrlPreprocessor, SparseWeightExtras
 from .nodes_weight import (DefaultWeights, ScaledSoftMaskedUniversalWeights, ScaledSoftUniversalWeights,
                            SoftControlNetWeightsSD15, CustomControlNetWeightsSD15, CustomControlNetWeightsFlux,
                            SoftT2IAdapterWeights, CustomT2IAdapterWeights)
-from .nodes_keyframes import (LatentKeyframeGroupNode, LatentKeyframeInterpolationNode, LatentKeyframeBatchedGroupNode, LatentKeyframeNode,
-                              TimestepKeyframeNode, TimestepKeyframeInterpolationNode, TimestepKeyframeFromStrengthListNode)
-from .nodes_sparsectrl import SparseCtrlMergedLoaderAdvanced, SparseCtrlLoaderAdvanced, SparseIndexMethodNode, SparseSpreadMethodNode, RgbSparseCtrlPreprocessor, SparseWeightExtras
-from .nodes_reference import ReferenceControlNetNode, ReferenceControlFinetune, ReferencePreprocessorNode
-from .nodes_plusplus import PlusPlusLoaderAdvanced, PlusPlusLoaderSingle, PlusPlusInputNode
-from .nodes_loosecontrol import ControlNetLoaderWithLoraAdvanced
-from .nodes_deprecated import (LoadImagesFromDirectory, ScaledSoftUniversalWeightsDeprecated,
-                               SoftControlNetWeightsDeprecated, CustomControlNetWeightsDeprecated, 
-                               SoftT2IAdapterWeightsDeprecated, CustomT2IAdapterWeightsDeprecated)
-from .logger import logger
-
 from .sampling import acn_sample_factory
+from .utils import ControlWeights, LatentKeyframeGroup, TimestepKeyframeGroup, AbstractPreprocWrapper
+from comfy.model_downloader import get_or_download, get_filename_list_with_downloadable
+
 # inject sample functions
 comfy.sample.sample = acn_sample_factory(comfy.sample.sample)
 comfy.sample.sample_custom = acn_sample_factory(comfy.sample.sample_custom, is_custom=True)
@@ -32,28 +32,28 @@ class ControlNetLoaderAdvanced:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "control_net_name": (folder_paths.get_filename_list("controlnet"), ),
+                "control_net_name": (get_filename_list_with_downloadable("controlnet"),),
             },
             "optional": {
-                "tk_optional": ("TIMESTEP_KEYFRAME", ),
+                "tk_optional": ("TIMESTEP_KEYFRAME",),
             }
         }
 
-    RETURN_TYPES = ("CONTROL_NET", )
+    RETURN_TYPES = ("CONTROL_NET",)
     FUNCTION = "load_controlnet"
 
     CATEGORY = "Adv-ControlNet 🛂🅐🅒🅝"
 
     def load_controlnet(self, control_net_name,
-                        tk_optional: TimestepKeyframeGroup=None,
-                        timestep_keyframe: TimestepKeyframeGroup=None,
+                        tk_optional: TimestepKeyframeGroup = None,
+                        timestep_keyframe: TimestepKeyframeGroup = None,
                         ):
-        if timestep_keyframe is not None: # backwards compatibility
+        if timestep_keyframe is not None:  # backwards compatibility
             tk_optional = timestep_keyframe
-        controlnet_path = folder_paths.get_full_path("controlnet", control_net_name)
+        controlnet_path = get_or_download("controlnet", control_net_name)
         controlnet = load_controlnet(controlnet_path, tk_optional)
         return (controlnet,)
-    
+
 
 class DiffControlNetLoaderAdvanced:
     @classmethod
@@ -61,26 +61,26 @@ class DiffControlNetLoaderAdvanced:
         return {
             "required": {
                 "model": ("MODEL",),
-                "control_net_name": (folder_paths.get_filename_list("controlnet"), )
+                "control_net_name": (get_filename_list_with_downloadable("controlnet"),)
             },
             "optional": {
-                "tk_optional": ("TIMESTEP_KEYFRAME", ),
+                "tk_optional": ("TIMESTEP_KEYFRAME",),
                 "autosize": ("ACNAUTOSIZE", {"padding": 160}),
             }
         }
-    
-    RETURN_TYPES = ("CONTROL_NET", )
+
+    RETURN_TYPES = ("CONTROL_NET",)
     FUNCTION = "load_controlnet"
 
     CATEGORY = "Adv-ControlNet 🛂🅐🅒🅝"
 
     def load_controlnet(self, control_net_name, model,
-                        tk_optional: TimestepKeyframeGroup=None,
-                        timestep_keyframe: TimestepKeyframeGroup=None
+                        tk_optional: TimestepKeyframeGroup = None,
+                        timestep_keyframe: TimestepKeyframeGroup = None
                         ):
-        if timestep_keyframe is not None: # backwards compatibility
+        if timestep_keyframe is not None:  # backwards compatibility
             tk_optional = timestep_keyframe
-        controlnet_path = folder_paths.get_full_path("controlnet", control_net_name)
+        controlnet_path = get_or_download("controlnet", control_net_name)
         controlnet = load_controlnet(controlnet_path, tk_optional, model)
         if is_advanced_controlnet(controlnet):
             controlnet.verify_all_weights()
@@ -92,41 +92,41 @@ class AdvancedControlNetApply:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "positive": ("CONDITIONING", ),
-                "negative": ("CONDITIONING", ),
-                "control_net": ("CONTROL_NET", ),
-                "image": ("IMAGE", ),
+                "positive": ("CONDITIONING",),
+                "negative": ("CONDITIONING",),
+                "control_net": ("CONTROL_NET",),
+                "image": ("IMAGE",),
                 "strength": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0, "step": 0.01}),
                 "start_percent": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.001}),
                 "end_percent": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.001})
             },
             "optional": {
-                "mask_optional": ("MASK", ),
-                "timestep_kf": ("TIMESTEP_KEYFRAME", ),
-                "latent_kf_override": ("LATENT_KEYFRAME", ),
-                "weights_override": ("CONTROL_NET_WEIGHTS", ),
+                "mask_optional": ("MASK",),
+                "timestep_kf": ("TIMESTEP_KEYFRAME",),
+                "latent_kf_override": ("LATENT_KEYFRAME",),
+                "weights_override": ("CONTROL_NET_WEIGHTS",),
                 "model_optional": ("MODEL",),
                 "vae_optional": ("VAE",),
                 "autosize": ("ACNAUTOSIZE", {"padding": 0}),
             }
         }
 
-    RETURN_TYPES = ("CONDITIONING","CONDITIONING","MODEL",)
+    RETURN_TYPES = ("CONDITIONING", "CONDITIONING", "MODEL",)
     RETURN_NAMES = ("positive", "negative", "model_opt")
     FUNCTION = "apply_controlnet"
 
     CATEGORY = "Adv-ControlNet 🛂🅐🅒🅝"
 
     def apply_controlnet(self, positive, negative, control_net, image, strength, start_percent, end_percent,
-                         mask_optional: Tensor=None, model_optional: ModelPatcher=None, vae_optional=None,
-                         timestep_kf: TimestepKeyframeGroup=None, latent_kf_override: LatentKeyframeGroup=None,
-                         weights_override: ControlWeights=None, control_apply_to_uncond=False):
+                         mask_optional: Tensor = None, model_optional: ModelPatcher = None, vae_optional=None,
+                         timestep_kf: TimestepKeyframeGroup = None, latent_kf_override: LatentKeyframeGroup = None,
+                         weights_override: ControlWeights = None, control_apply_to_uncond=False):
         if strength == 0:
             return (positive, negative, model_optional)
         if model_optional:
             model_optional = model_optional.clone()
 
-        control_hint = image.movedim(-1,1)
+        control_hint = image.movedim(-1, 1)
         cnets = {}
 
         out = []
@@ -141,14 +141,17 @@ class AdvancedControlNetApply:
                         c_net = cnets[prev_cnet]
                     else:
                         # copy, convert to advanced if needed, and set cond
-                        c_net = convert_to_advanced(control_net.copy()).set_cond_hint(control_hint, strength, (start_percent, end_percent), vae_optional)
+                        c_net = convert_to_advanced(control_net.copy()).set_cond_hint(control_hint, strength,
+                                                                                      (start_percent, end_percent),
+                                                                                      vae_optional)
                         if is_advanced_controlnet(c_net):
                             # disarm node check
                             c_net.disarm()
                             # if model required, verify model is passed in, and if so patch it
                             if c_net.require_model:
                                 if not model_optional:
-                                    raise Exception(f"Type '{type(c_net).__name__}' requires model_optional input, but got None.")
+                                    raise Exception(
+                                        f"Type '{type(c_net).__name__}' requires model_optional input, but got None.")
                                 c_net.patch_model(model=model_optional)
                             # if vae required, verify vae is passed in
                             if c_net.require_vae:
@@ -160,7 +163,8 @@ class AdvancedControlNetApply:
                                     if is_sd3_advanced_controlnet:
                                         raise Exception(f"SD3 ControlNet requires vae_optional input, but got None.")
                                     else:
-                                        raise Exception(f"Type '{type(c_net).__name__}' requires vae_optional input, but got None.")
+                                        raise Exception(
+                                            f"Type '{type(c_net).__name__}' requires vae_optional input, but got None.")
                             # apply optional parameters and overrides, if provided
                             if timestep_kf is not None:
                                 c_net.set_timestep_keyframes(timestep_kf)
@@ -186,45 +190,50 @@ class AdvancedControlNetApply:
                     c.append(n)
             out.append(c)
         return (out[0], out[1], model_optional)
-    
+
 
 class AdvancedControlNetApplySingle:
     @classmethod
     def INPUT_TYPES(s):
         return {
             "required": {
-                "conditioning": ("CONDITIONING", ),
-                "control_net": ("CONTROL_NET", ),
-                "image": ("IMAGE", ),
+                "conditioning": ("CONDITIONING",),
+                "control_net": ("CONTROL_NET",),
+                "image": ("IMAGE",),
                 "strength": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0, "step": 0.01}),
                 "start_percent": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0, "step": 0.001}),
                 "end_percent": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.001})
             },
             "optional": {
-                "mask_optional": ("MASK", ),
-                "timestep_kf": ("TIMESTEP_KEYFRAME", ),
-                "latent_kf_override": ("LATENT_KEYFRAME", ),
-                "weights_override": ("CONTROL_NET_WEIGHTS", ),
+                "mask_optional": ("MASK",),
+                "timestep_kf": ("TIMESTEP_KEYFRAME",),
+                "latent_kf_override": ("LATENT_KEYFRAME",),
+                "weights_override": ("CONTROL_NET_WEIGHTS",),
                 "model_optional": ("MODEL",),
                 "vae_optional": ("VAE",),
                 "autosize": ("ACNAUTOSIZE", {"padding": 0}),
             }
         }
 
-    RETURN_TYPES = ("CONDITIONING","MODEL",)
+    RETURN_TYPES = ("CONDITIONING", "MODEL",)
     RETURN_NAMES = ("CONDITIONING", "model_opt")
     FUNCTION = "apply_controlnet"
 
     CATEGORY = "Adv-ControlNet 🛂🅐🅒🅝"
 
     def apply_controlnet(self, conditioning, control_net, image, strength, start_percent, end_percent,
-                         mask_optional: Tensor=None, model_optional: ModelPatcher=None, vae_optional=None,
-                         timestep_kf: TimestepKeyframeGroup=None, latent_kf_override: LatentKeyframeGroup=None,
-                         weights_override: ControlWeights=None):
-        values = AdvancedControlNetApply.apply_controlnet(self, positive=conditioning, negative=None, control_net=control_net, image=image,
-                                                          strength=strength, start_percent=start_percent, end_percent=end_percent,
-                                                          mask_optional=mask_optional, model_optional=model_optional, vae_optional=vae_optional,
-                                                          timestep_kf=timestep_kf, latent_kf_override=latent_kf_override, weights_override=weights_override,
+                         mask_optional: Tensor = None, model_optional: ModelPatcher = None, vae_optional=None,
+                         timestep_kf: TimestepKeyframeGroup = None, latent_kf_override: LatentKeyframeGroup = None,
+                         weights_override: ControlWeights = None):
+        values = AdvancedControlNetApply.apply_controlnet(self, positive=conditioning, negative=None,
+                                                          control_net=control_net, image=image,
+                                                          strength=strength, start_percent=start_percent,
+                                                          end_percent=end_percent,
+                                                          mask_optional=mask_optional, model_optional=model_optional,
+                                                          vae_optional=vae_optional,
+                                                          timestep_kf=timestep_kf,
+                                                          latent_kf_override=latent_kf_override,
+                                                          weights_override=weights_override,
                                                           control_apply_to_uncond=True)
         return (values[0], values[2])
 
@@ -270,7 +279,7 @@ NODE_CLASS_MAPPINGS = {
     "ACN_ReferenceControlNet": ReferenceControlNetNode,
     "ACN_ReferenceControlNetFinetune": ReferenceControlFinetune,
     # LOOSEControl
-    #"ACN_ControlNetLoaderWithLoraAdvanced": ControlNetLoaderWithLoraAdvanced,
+    # "ACN_ControlNetLoaderWithLoraAdvanced": ControlNetLoaderWithLoraAdvanced,
     # Deprecated
     "LoadImagesFromDirectory": LoadImagesFromDirectory,
     "ScaledSoftControlNetWeights": ScaledSoftUniversalWeightsDeprecated,
@@ -320,7 +329,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ACN_ReferenceControlNet": "Reference ControlNet 🛂🅐🅒🅝",
     "ACN_ReferenceControlNetFinetune": "Reference ControlNet (Finetune) 🛂🅐🅒🅝",
     # LOOSEControl
-    #"ACN_ControlNetLoaderWithLoraAdvanced": "Load Adv. ControlNet Model w/ LoRA 🛂🅐🅒🅝",
+    # "ACN_ControlNetLoaderWithLoraAdvanced": "Load Adv. ControlNet Model w/ LoRA 🛂🅐🅒🅝",
     # Deprecated
     "LoadImagesFromDirectory": "🚫Load Images [DEPRECATED] 🛂🅐🅒🅝",
     "ScaledSoftControlNetWeights": "Scaled Soft Weights 🛂🅐🅒🅝",
@@ -329,3 +338,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SoftT2IAdapterWeights": "T2IAdapter Soft Weights 🛂🅐🅒🅝",
     "CustomT2IAdapterWeights": "T2IAdapter Custom Weights 🛂🅐🅒🅝",
 }
+
+documentation.format_descriptions(NODE_CLASS_MAPPINGS)
