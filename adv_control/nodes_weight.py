@@ -1,6 +1,6 @@
 from torch import Tensor
 import torch
-from .utils import TimestepKeyframe, TimestepKeyframeGroup, ControlWeights, get_properly_arranged_t2i_weights, linear_conversion
+from .utils import TimestepKeyframe, TimestepKeyframeGroup, ControlWeights, Extras, get_properly_arranged_t2i_weights, linear_conversion
 from .logger import logger
 
 
@@ -13,6 +13,8 @@ class DefaultWeights:
         return {
             "optional": {
                 "cn_extras": ("CN_WEIGHTS_EXTRAS",),
+            },
+            "hidden": {
                 "autosize": ("ACNAUTOSIZE", {"padding": 0}),
             }
         }
@@ -44,6 +46,8 @@ class ScaledSoftMaskedUniversalWeights:
             "optional": {
                 "uncond_multiplier": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01}, ),
                 "cn_extras": ("CN_WEIGHTS_EXTRAS",),
+            },
+            "hidden": {
                 "autosize": ("ACNAUTOSIZE", {"padding": 0}),
             }
         }
@@ -80,6 +84,8 @@ class ScaledSoftUniversalWeights:
             "optional": {
                 "uncond_multiplier": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01}, ),
                 "cn_extras": ("CN_WEIGHTS_EXTRAS",),
+            },
+            "hidden": {
                 "autosize": ("ACNAUTOSIZE", {"padding": 0}),
             }
         }
@@ -119,6 +125,8 @@ class SoftControlNetWeightsSD15:
             "optional": {
                 "uncond_multiplier": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01}, ),
                 "cn_extras": ("CN_WEIGHTS_EXTRAS",),
+            },
+            "hidden": {
                 "autosize": ("ACNAUTOSIZE", {"padding": 0}),
             }
         }
@@ -164,6 +172,8 @@ class CustomControlNetWeightsSD15:
             "optional": {
                 "uncond_multiplier": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01}, ),
                 "cn_extras": ("CN_WEIGHTS_EXTRAS",),
+            },
+            "hidden": {
                 "autosize": ("ACNAUTOSIZE", {"padding": 0}),
             }
         }
@@ -182,7 +192,8 @@ class CustomControlNetWeightsSD15:
         weights_output = [output_0, output_1, output_2, output_3, output_4, output_5, output_6,
                           output_7, output_8, output_9, output_10, output_11]
         weights_middle = [middle_0]
-        weights = ControlWeights.controlnet(weights_output=weights_output, weights_middle=weights_middle, uncond_multiplier=uncond_multiplier, extras=cn_extras)
+        weights = ControlWeights.controlnet(weights_output=weights_output, weights_middle=weights_middle, uncond_multiplier=uncond_multiplier,
+                                            extras=cn_extras, disable_applied_to=True)
         return (weights, TimestepKeyframeGroup.default(TimestepKeyframe(control_weights=weights)))
 
 
@@ -214,6 +225,8 @@ class CustomControlNetWeightsFlux:
             "optional": {
                 "uncond_multiplier": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01}, ),
                 "cn_extras": ("CN_WEIGHTS_EXTRAS",),
+            },
+            "hidden": {
                 "autosize": ("ACNAUTOSIZE", {"padding": 0}),
             }
         }
@@ -233,7 +246,7 @@ class CustomControlNetWeightsFlux:
         weights_input = [input_0, input_1, input_2, input_3, input_4, input_5,
                          input_6, input_7, input_8, input_9, input_10, input_11,
                          input_12, input_13, input_14, input_15, input_16, input_17, input_18]
-        weights = ControlWeights.controlnet(weights_input=weights_input, uncond_multiplier=uncond_multiplier, extras=cn_extras)
+        weights = ControlWeights.controlnet(weights_input=weights_input, uncond_multiplier=uncond_multiplier, extras=cn_extras, disable_applied_to=True)
         return (weights, TimestepKeyframeGroup.default(TimestepKeyframe(control_weights=weights)))
 
 
@@ -250,6 +263,8 @@ class SoftT2IAdapterWeights:
             "optional": {
                 "uncond_multiplier": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01}, ),
                 "cn_extras": ("CN_WEIGHTS_EXTRAS",),
+            },
+            "hidden": {
                 "autosize": ("ACNAUTOSIZE", {"padding": 0}),
             }
         }
@@ -281,6 +296,8 @@ class CustomT2IAdapterWeights:
             "optional": {
                 "uncond_multiplier": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01}, ),
                 "cn_extras": ("CN_WEIGHTS_EXTRAS",),
+            },
+            "hidden": {
                 "autosize": ("ACNAUTOSIZE", {"padding": 0}),
             }
         }
@@ -297,5 +314,32 @@ class CustomT2IAdapterWeights:
             cn_extras = {}
         weights = [input_0, input_1, input_2, input_3]
         weights = get_properly_arranged_t2i_weights(weights)
-        weights = ControlWeights.t2iadapter(weights_input=weights, uncond_multiplier=uncond_multiplier, extras=cn_extras)
+        weights = ControlWeights.t2iadapter(weights_input=weights, uncond_multiplier=uncond_multiplier, extras=cn_extras, disable_applied_to=True)
         return (weights, TimestepKeyframeGroup.default(TimestepKeyframe(control_weights=weights)))
+
+
+class ExtrasMiddleMultNode:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "middle_mult": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0, "step": 0.001}),
+            },
+            "optional": {
+                "cn_extras": ("CN_WEIGHTS_EXTRAS",),
+            },
+            "hidden": {
+                "autosize": ("ACNAUTOSIZE", {"padding": 0}),
+            }
+        }
+    
+    RETURN_TYPES = ("CN_WEIGHTS_EXTRAS",)
+    RETURN_NAMES = ("cn_extras",)
+    FUNCTION = "create_extras"
+
+    CATEGORY = "Adv-ControlNet 🛂🅐🅒🅝/weights/extras"
+
+    def create_extras(self, middle_mult: float, cn_extras: dict[str]={}):
+        cn_extras = cn_extras.copy()
+        cn_extras[Extras.MIDDLE_MULT] = middle_mult
+        return (cn_extras,)
